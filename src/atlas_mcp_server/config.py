@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
+
+from dotenv import load_dotenv
+
+# Load project .env before dataclass defaults read os.environ (at import time).
+_project_root = Path(__file__).resolve().parents[2]
+load_dotenv(_project_root / ".env")
 
 
 @dataclass
