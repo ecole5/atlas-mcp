@@ -12,93 +12,60 @@ Requires-Dist: anyio>=4.4.0
 Requires-Dist: mcp>=1.1.2
 Dynamic: license-file
 
-# NiFi MCP Server (via Knox)
+# Atlas MCP Server
 
-Model Context Protocol server providing selectable read and write access to Apache NiFi via Apache Knox.
-
-**Works with both NiFi 1.x and 2.x** - automatic version detection and adaptation.
-
-![](/screenshots/Nifi-meet-mcp.png)
+Model Context Protocol server providing AI access to Apache Atlas data catalog via Apache Knox.
 
 ## Features
 
-- **Automatic version detection** - Detects NiFi 1.x vs 2.x and adapts behavior
-- **Knox authentication** - Supports Bearer tokens, cookies, and passcode tokens for CDP deployments
-- **Read-only by default** - Safe exploration of NiFi flows and configuration
-- **Intelligent flow building** - Pattern recognition and requirements gathering for complex flows
-- **24 read-only MCP tools** for exploring NiFi:
-  - `get_nifi_version()` - Version and build information
-  - `get_root_process_group()` - Root process group details
-  - `list_processors(process_group_id)` - List processors in a process group
-  - `list_connections(process_group_id)` - List connections in a process group
-  - `get_bulletins(after_ms?)` - Recent bulletins and alerts
-  - `list_parameter_contexts()` - Parameter contexts
-  - `get_controller_services(process_group_id?)` - Controller services
-  - `get_processor_types()` - Available processor types for flow building
-  - `search_flow(query)` - Search for components in the flow
-  - `get_connection_details(connection_id)` - Detailed connection information
-  - `get_processor_details(processor_id)` - Detailed processor configuration
-  - `list_input_ports(process_group_id)` - Input ports for a process group
-  - `list_output_ports(process_group_id)` - Output ports for a process group
-  - `get_processor_state(processor_id)` - Quick processor state check
-  - `check_connection_queue(connection_id)` - Queue size (flowfiles + bytes)
-  - `get_flow_summary(process_group_id)` - Flow statistics and health overview
-  - `analyze_flow_build_request(user_request)` - Intelligent pattern recognition and requirements gathering
-  - `get_parameter_context_details(context_id)` - Get parameter context with all parameters
-  - `get_flow_health_status(process_group_id)` - Comprehensive flow health check (processors, services, connections, errors)
-  - `find_controller_services_by_type(process_group_id, service_type)` - Search for existing controller services by type (prevents 409 conflicts)
-  - `check_configuration()` - Validate current environment configuration
-  - `get_setup_instructions()` - Interactive setup guidance for NiFi MCP Server
-  - `get_best_practices_guide()` - Best practices for building NiFi flows
-  - `get_recommended_workflow(flow_type)` - Step-by-step guidance for common flow patterns
-- **42 write operations** (when `NIFI_READONLY=false`):
-  - `start_processor(processor_id, version)` - Start a processor
-  - `stop_processor(processor_id, version)` - Stop a processor
-  - `create_processor(...)` - Create a new processor
-  - `update_processor_config(...)` - Update processor configuration
-  - `delete_processor(processor_id, version)` - Delete a processor
-  - `create_connection(...)` - Connect components
-  - `delete_connection(connection_id, version)` - Delete a connection
-  - `empty_connection_queue(connection_id)` - Empty flowfiles from queue (⚠️ data loss)
-  - `create_controller_service(pg_id, service_type, name)` - Create controller services (DBCPConnectionPool, RecordWriters, etc.)
-  - `update_controller_service_properties(service_id, version, properties)` - Configure service properties
-  - `get_controller_service_details(service_id)` - Get service configuration (read-only but listed here for context)
-  - `delete_controller_service(service_id, version)` - Remove controller services
-  - `enable_controller_service(service_id, version)` - Enable a controller service
-  - `disable_controller_service(service_id, version)` - Disable a controller service
-  - `create_process_group(parent_id, name, x, y)` - Create process groups (folders) for organizing flows
-  - `update_process_group_name(pg_id, version, name)` - Rename process groups
-  - `delete_process_group(pg_id, version)` - Remove empty process groups
-  - `create_input_port(pg_id, name, x, y)` - Create input ports for inter-process-group communication
-  - `create_output_port(pg_id, name, x, y)` - Create output ports for inter-process-group communication
-  - `update_input_port(port_id, version, name)` - Rename input ports
-  - `update_output_port(port_id, version, name)` - Rename output ports
-  - `delete_input_port(port_id, version)` - Remove input ports
-  - `delete_output_port(port_id, version)` - Remove output ports
-  - `create_parameter_context(name, description, parameters)` - Create parameter contexts for environment-specific config
-  - `update_parameter_context(context_id, version, ...)` - Update parameter contexts
-  - `delete_parameter_context(context_id, version)` - Remove parameter contexts
-  - `start_input_port(port_id, version)` - Start input port to enable data flow
-  - `stop_input_port(port_id, version)` - Stop input port
-  - `start_output_port(port_id, version)` - Start output port to enable data flow
-  - `stop_output_port(port_id, version)` - Stop output port
-  - `apply_parameter_context_to_process_group(pg_id, pg_version, context_id)` - Apply parameter context to enable #{param} usage
-  - `start_all_processors_in_group(pg_id)` - Bulk start all processors at once (10-15x faster!)
-  - `stop_all_processors_in_group(pg_id)` - Bulk stop all processors at once  
-  - `enable_all_controller_services_in_group(pg_id)` - Bulk enable all services at once
-  - `terminate_processor(processor_id, version)` - Force-terminate stuck processor (last resort)
-  - `start_new_flow(flow_name, flow_description)` - Smart flow builder that automatically creates process groups and enforces best practices
+- **Knox authentication** — supports JWT tokens, raw cookies, and Basic Auth for CDP deployments
+- **Read-mostly** — safe exploration of entities, lineage, types, and glossaries; a small set of write tools for tagging and labeling
+- **Automatic retries** — exponential backoff on transient errors
 
-## Quick Start
+### MCP Tools
 
-### For CDP NiFi deployments
+**Admin / Status**
+- `get_atlas_status()` — Server health information
+- `get_atlas_metrics()` — Entity and tag counts by type
+- `get_atlas_version()` — Atlas version
 
-Your NiFi API base URL will typically be:
-```
-https://<your-nifi-host>/nifi-2-dh/cdp-proxy/nifi-app/nifi-api
-```
+**Search**
+- `search_entities(query, type_name?, classification?, limit, offset, exclude_deleted)` — Basic search; use `'*'` to browse all
+- `fulltext_search(query, limit, offset, exclude_deleted)` — Full-text search across attribute values and descriptions
+- `dsl_search(query, limit, offset)` — Atlas DSL queries (e.g. `hive_table where db.name="default"`)
+- `search_by_classification(classification, entity_type?, limit, offset)` — Find all entities with a given tag (e.g. `PII`)
 
-Get your Knox JWT token from the CDP UI and use it with the configurations below.
+**Entity**
+- `get_entity(guid, ignore_relationships?)` — Full entity details including classifications and relationships
+- `get_entity_by_attribute(type_name, attr_name, attr_value)` — Lookup by `qualifiedName` or other unique attribute
+- `get_entity_classifications(guid)` — Tags applied to an entity
+- `get_entity_labels(guid)` — Free-form labels on an entity
+- `get_entity_audit(guid, count)` — Audit history of attribute and classification changes
+- `get_entities_bulk(guids)` — Fetch multiple entities in one call (comma-separated GUIDs)
+
+**Lineage**
+- `get_lineage(guid, direction, depth)` — Data lineage graph (`INPUT`, `OUTPUT`, or `BOTH`)
+- `get_lineage_by_attribute(type_name, attr_name, attr_value, direction, depth)` — Lineage without a GUID
+
+**Types**
+- `list_entity_types()` — All registered entity type names
+- `list_classification_types()` — All classification (tag) type names
+- `get_entity_type_definition(type_name)` — Full attribute schema for an entity type
+- `get_classification_definition(classification_name)` — Attribute schema for a classification type
+
+**Glossary**
+- `list_glossaries()` — All business glossaries
+- `list_glossary_terms(glossary_guid?, limit, offset)` — Terms in a glossary (or all terms)
+- `get_glossary_term(term_guid)` — Term definition and linked entities
+- `get_entities_for_glossary_term(term_guid, limit, offset)` — Data assets linked to a term
+
+**Relationship**
+- `get_relationship(guid)` — Details of an entity-to-entity relationship
+
+**Write operations**
+- `add_classification_to_entity(guid, classification_name, attributes?)` — Apply a tag to an entity
+- `remove_classification_from_entity(guid, classification_name)` — Remove a tag from an entity
+- `add_labels_to_entity(guid, labels)` — Add free-form labels (comma-separated)
 
 ## Setup
 
@@ -106,145 +73,114 @@ Get your Knox JWT token from the CDP UI and use it with the configurations below
 
 1. **Clone and install:**
    ```bash
-   git clone https://github.com/cloudera/nifi-mcp-server.git
-   cd nifi-mcp-server
+   git clone <repo-url>
+   cd Atlas-MCP-Server
    python3 -m venv .venv
    source .venv/bin/activate
    pip install -e .
    ```
 
-2. **Configure Claude Desktop** - Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+2. **Configure Claude Desktop** — edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
    ```json
-    {
-      "mcpServers": {
-        "nifi-mcp-server": {
-          "command": "/FULL/PATH/TO/NiFi-MCP-Server/.venv/bin/python",
-          "args": [
-            "-m",
-            "nifi_mcp_server.server"
-          ],
-          "env": {
-            "MCP_TRANSPORT": "stdio",
-            "NIFI_API_BASE": "https://nifi-2-dh-management0.yourshere.cloudera.site/nifi-2-dh/cdp-proxy/nifi-app/nifi-api",
-            "KNOX_TOKEN": "<your_knox_bearer_token>",
-            "NIFI_READONLY": "true"
-          }
-        }
-      }
-    }
+   {
+     "mcpServers": {
+       "atlas-mcp-server": {
+         "command": "/FULL/PATH/TO/Atlas-MCP-Server/.venv/bin/python",
+         "args": ["-m", "atlas_mcp_server.server"],
+         "env": {
+           "MCP_TRANSPORT": "stdio",
+           "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api",
+           "KNOX_TOKEN": "<your_knox_jwt_token>"
+         }
+       }
+     }
+   }
    ```
 
-3. **Restart Claude Desktop** and start asking questions about your NiFi flows!
+3. **Restart Claude Desktop** and start asking questions about your data catalog.
 
-### Option 2: Direct Installation (Cloudera Agent Studio)
-
-For use with Cloudera Agent Studio, use the `uvx` command:
+### Option 2: uvx (Cloudera Agent Studio)
 
 ```json
 {
   "mcpServers": {
-    "nifi-mcp-server": {
+    "atlas-mcp-server": {
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/cloudera/nifi-mcp-server@main",
+        "git+<repo-url>@main",
         "run-server"
       ],
       "env": {
         "MCP_TRANSPORT": "stdio",
-        "NIFI_API_BASE": "https://nifi-2-dh-management0.yourshere.cloudera.site/nifi-2-dh/cdp-proxy/nifi-app/nifi-api",
-        "KNOX_TOKEN": "<your_knox_bearer_token>",
-        "NIFI_READONLY": "true"
+        "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api",
+        "KNOX_TOKEN": "<your_knox_jwt_token>"
       }
     }
   }
 }
 ```
 
-## Configuration Options
+## Configuration
 
-All configuration is done via environment variables:
+All configuration is done via environment variables.
+
+### Connection
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NIFI_API_BASE` | Yes* | Full NiFi API URL (e.g., `https://host/nifi-2-dh/cdp-proxy/nifi-app/nifi-api`) |
-| `KNOX_TOKEN` | Yes* | Knox JWT token for authentication |
-| `KNOX_GATEWAY_URL` | No | Knox gateway URL (alternative to `NIFI_API_BASE`) |
-| `KNOX_COOKIE` | No | Alternative: provide full cookie string instead of token |
-| `KNOX_PASSCODE_TOKEN` | No | Alternative: Knox passcode token (auto-exchanged for JWT) |
-| `NIFI_READONLY` | No | Read-only mode (default: `true`) |
-| `KNOX_VERIFY_SSL` | No | Verify SSL certificates (default: `true`) |
-| `KNOX_CA_BUNDLE` | No | Path to CA certificate bundle |
+| `ATLAS_GATEWAY_URL` | Yes* | CDP Knox gateway URL (e.g. `https://<host>/<topology>/cdp-proxy-api`). Resolves to `{url}/atlas/api/atlas/v2`. |
+| `ATLAS_API_BASE` | Yes* | Direct Atlas API base URL (e.g. `https://<host>/api/atlas/v2`). Overrides `ATLAS_GATEWAY_URL`. |
 
-\* Either `NIFI_API_BASE` or `KNOX_GATEWAY_URL` is required
+\* One of these is required.
 
+### Authentication (pick one)
 
-For the NIFI_API_BASE, form using the url from Knox (less `-token`), and add the postfix `/nifi-app/nifi-api`
-So, `https://nifi-2-dh-management0.yourdomain.cloudera.site/nifi-2-dh/cdp-proxy-token` becomes `https://nifi-2-dh-management0.yourdomain.cloudera.site/nifi-2-dh/cdp-proxy/nifi-app/nifi-api`
+| Variable | Priority | Description |
+|----------|----------|-------------|
+| `KNOX_COOKIE` | Highest | Raw cookie string (e.g. `hadoop-jwt=<token>`) |
+| `KNOX_TOKEN` | Medium | Knox JWT token — sent as `hadoop-jwt` cookie |
+| `ATLAS_USER` + `ATLAS_PASS` | Lowest | Basic auth credentials |
 
-Get Knox Token from the Flow Management Datahub Knox instance:
+### TLS / HTTP
 
-![](/screenshots/knox-token-generation.png)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ATLAS_VERIFY_SSL` | `true` | Set `false` to disable certificate verification |
+| `ATLAS_CA_BUNDLE` | — | Path to a CA certificate bundle |
+| `HTTP_TIMEOUT_SECONDS` | `30` | Request timeout in seconds |
+| `HTTP_MAX_RETRIES` | `3` | Maximum retry attempts on transient errors |
 
+### Server Transport
 
-## Example Usage
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MCP_TRANSPORT` | `stdio` | Transport mode: `stdio`, `http`, or `sse` |
+| `MCP_HOST` | `127.0.0.1` | Bind address (for `http`/`sse` modes) |
+| `MCP_PORT` | `3030` | Port (for `http`/`sse` modes) |
 
-### Read-Only Operations (Default)
+### CDP URL pattern
 
-Once configured, you can ask Claude questions like:
+The `ATLAS_GATEWAY_URL` for a CDP Flow Management DataHub is typically:
 
-- "What version of NiFi am I running?"
-- "List all processors in the root process group"
-- "Show me recent bulletins"
-- "What parameter contexts are configured?"
-- "Tell me about the controller services"
-- "What processor types are available for building flows?"
-- "Search for processors containing 'kafka'"
-- "Show me the details of connection abc-123"
-
-### Write Operations (when NIFI_READONLY=false)
-
-**⚠️ WARNING: Write operations modify your NiFi flows. Use with caution!**
-
-To enable write operations, set `NIFI_READONLY=false` in your configuration. Then you can:
-
-- **Build flows**: "Create a LogAttribute processor named 'MyLogger' in the root process group"
-- **Manage processors**: "Start processor with ID abc-123", "Stop all processors in group xyz"
-- **Connect components**: "Create a connection from processor A to processor B for the 'success' relationship"
-- **Configure**: "Update the scheduling period of processor abc-123 to 30 seconds"
-- **Control services**: "Enable the DBCPConnectionPool controller service"
-
-**Examples:**
 ```
-"Create a GenerateFlowFile processor in process group abc-123"
-"Connect processor source-123 to processor dest-456 for success relationship"
-"Start processor xyz-789"
-"Check the queue status for connection conn-456"
-"Empty the queue for connection conn-456 before deletion"  (⚠️ deletes flowfiles permanently)
-"Delete connection conn-456"
+https://<cluster-host>/<topology>/cdp-proxy-api
 ```
 
-**Important Notes:**
-- **Version Tracking:** NiFi uses optimistic locking. Always fetch current versions before updates:
-  ```python
-  processor = get_processor_details(processor_id)
-  current_version = processor['revision']['version']
-  stop_processor(processor_id, current_version)
-  ```
-- **Queue Management:** Connections with flowfiles cannot be deleted. Use `get_connection_details()` to check queue status, then `empty_connection_queue()` if needed before deletion.
+The server automatically appends `/atlas/api/atlas/v2` to form the full API base URL.
 
+## Example Queries
 
-**Using the example `"List all processors in the root process group"`, we see the following for the example NiFi Canvas:**
+Once configured, you can ask Claude things like:
 
-![](/screenshots/nifi-canvas-1.png)
-
-![](/screenshots/nifi-readcanvas-1.png)
-
-
-**Using the example, `"What version of NiFi am I running?"`, we see the following:**
-
-![](/screenshots/nifi-version-check.png)
-
+- "What entity types are registered in Atlas?"
+- "Find all Hive tables in the default database"
+- "Show me the lineage for table `default.orders@mycluster`"
+- "Which entities are tagged as PII?"
+- "What does the glossary term 'Customer ID' mean?"
+- "Show me the audit history for entity guid abc-123"
+- "Search for all Kafka topics containing 'events'"
+- "Tag entity abc-123 as Confidential"
 
 ## License
 

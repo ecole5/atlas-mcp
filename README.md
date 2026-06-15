@@ -75,7 +75,7 @@ Model Context Protocol server providing AI access to Apache Atlas data catalog v
          "args": ["-m", "atlas_mcp_server.server"],
          "env": {
            "MCP_TRANSPORT": "stdio",
-           "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api",
+           "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/",
            "KNOX_TOKEN": "<your_knox_jwt_token>"
          }
        }
@@ -99,7 +99,7 @@ Model Context Protocol server providing AI access to Apache Atlas data catalog v
       ],
       "env": {
         "MCP_TRANSPORT": "stdio",
-        "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api",
+        "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/",
         "KNOX_TOKEN": "<your_knox_jwt_token>"
       }
     }
@@ -115,10 +115,7 @@ All configuration is done via environment variables.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `ATLAS_GATEWAY_URL` | Yes* | CDP Knox gateway URL (e.g. `https://<host>/<topology>/cdp-proxy-api`). Resolves to `{url}/atlas/api/atlas/v2`. |
-| `ATLAS_API_BASE` | Yes* | Direct Atlas API base URL (e.g. `https://<host>/api/atlas/v2`). Overrides `ATLAS_GATEWAY_URL`. |
-
-\* One of these is required.
+| `ATLAS_GATEWAY_URL` | Yes | Full CDP Knox Atlas API URL (e.g. `https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/`). |
 
 ### Authentication (pick one)
 
@@ -147,13 +144,13 @@ All configuration is done via environment variables.
 
 ### CDP URL pattern
 
-The `ATLAS_GATEWAY_URL` for a CDP Flow Management DataHub is typically:
+The `ATLAS_GATEWAY_URL` for a CDP Flow Management DataHub is the full Atlas API path through Knox, for example:
 
 ```
-https://<cluster-host>/<topology>/cdp-proxy-api
+https://<cluster-host>/<topology>/cdp-proxy-api/atlas/api/atlas/
 ```
 
-The server automatically appends `/atlas/api/atlas/v2` to form the full API base URL.
+A trailing slash is optional.
 
 ## Example Queries
 
