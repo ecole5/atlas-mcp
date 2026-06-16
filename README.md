@@ -4,7 +4,7 @@ Model Context Protocol server providing AI access to Apache Atlas data catalog v
 
 ## Features
 
-- **Knox authentication** — supports JWT tokens, raw cookies, and Basic Auth for CDP deployments
+- **Basic authentication** — Knox proxies `ATLAS_USER` / `ATLAS_PASS` credentials through to Atlas
 - **Read-mostly** — safe exploration of entities, lineage, types, and glossaries; a small set of write tools for tagging and labeling
 - **Automatic retries** — exponential backoff on transient errors
 
@@ -82,7 +82,8 @@ Model Context Protocol server providing AI access to Apache Atlas data catalog v
          "args": ["-m", "atlas_mcp_server.server"],
          "env": {
            "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/",
-           "KNOX_TOKEN": "<your_knox_jwt_token>"
+           "ATLAS_USER": "<your_username>",
+           "ATLAS_PASS": "<your_password>"
          }
        }
      }
@@ -104,7 +105,8 @@ Model Context Protocol server providing AI access to Apache Atlas data catalog v
       ],
       "env": {
         "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/",
-        "KNOX_TOKEN": "<your_knox_jwt_token>"
+        "ATLAS_USER": "<your_username>",
+        "ATLAS_PASS": "<your_password>"
       }
     }
   }
@@ -123,14 +125,12 @@ All configuration is done via environment variables.
 | `ATLAS_GATEWAY_URL` | Yes      | Full CDP Knox Atlas API URL (e.g. `https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/`). |
 
 
-### Authentication (pick one)
+### Authentication
 
 
-| Variable                    | Priority | Description                                   |
-| --------------------------- | -------- | --------------------------------------------- |
-| `KNOX_COOKIE`               | Highest  | Raw cookie string (e.g. `hadoop-jwt=<token>`) |
-| `KNOX_TOKEN`                | Medium   | Knox JWT token — sent as `hadoop-jwt` cookie  |
-| `ATLAS_USER` + `ATLAS_PASS` | Lowest   | Basic auth credentials                        |
+| Variable                    | Required | Description            |
+| --------------------------- | -------- | ---------------------- |
+| `ATLAS_USER` + `ATLAS_PASS` | Yes      | Basic auth credentials |
 
 
 ### TLS / HTTP

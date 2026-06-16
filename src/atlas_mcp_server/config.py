@@ -18,14 +18,9 @@ class ServerConfig:
     # Example: ATLAS_GATEWAY_URL=https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/
     atlas_gateway_url: str = os.getenv("ATLAS_GATEWAY_URL", "")
 
-    # Auth — simple Basic Auth (Knox proxies it through)
+    # Auth — Basic Auth (Knox proxies credentials through)
     atlas_user: Optional[str] = os.getenv("ATLAS_USER")
     atlas_password: Optional[str] = os.getenv("ATLAS_PASS")
-
-    # Knox JWT token as alternative to basic auth
-    knox_token: Optional[str] = os.getenv("KNOX_TOKEN")
-    # Raw cookie string (highest priority)
-    knox_cookie: Optional[str] = os.getenv("KNOX_COOKIE")
 
     # TLS/HTTP
     verify_ssl_env: str = os.getenv("ATLAS_VERIFY_SSL", "true").lower()
@@ -38,13 +33,13 @@ class ServerConfig:
             return self.ca_bundle
         return self.verify_ssl_env not in {"0", "false", "no"}
 
-    def build_atlas_base(self) -> str:
+    def build_atlas_api_root(self) -> str:
         if not self.atlas_gateway_url:
             raise ValueError(
                 "ATLAS_GATEWAY_URL must be set.\n"
                 "Example: ATLAS_GATEWAY_URL=https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/"
             )
-        base = self.atlas_gateway_url.rstrip("/")
-        if not base.endswith("/v2"):
-            base = f"{base}/v2"
-        return base
+        return self.atlas_gateway_url.rstrip("/").removesuffix("/v2")
+
+    def build_atlas_base(self) -> str:
+        return f"{self.build_atlas_api_root()}/v2"

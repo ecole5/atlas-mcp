@@ -31,13 +31,23 @@ def _bool_query(value: bool) -> str:
 class AtlasClient:
     """HTTP client for Atlas v2 REST API (CDP 7.3.1 compatible)."""
 
-    def __init__(self, base_url: str, session: requests.Session, timeout_seconds: int = 30):
+    def __init__(
+        self,
+        base_url: str,
+        session: requests.Session,
+        timeout_seconds: int = 30,
+        api_root_url: Optional[str] = None,
+    ):
         self.base_url = base_url.rstrip("/")
+        self.api_root_url = (api_root_url or base_url).rstrip("/")
         self.session = session
         self.timeout = timeout_seconds
 
     def _url(self, path: str) -> str:
         return f"{self.base_url}/{path.lstrip('/')}"
+
+    def _api_root_url(self, path: str) -> str:
+        return f"{self.api_root_url}/{path.lstrip('/')}"
 
     @staticmethod
     def _unique_attr_params(attr_name: str, attr_value: str) -> Dict[str, str]:
@@ -51,6 +61,20 @@ class AtlasClient:
     )
     def _get(self, path: str, params: Optional[Union[Dict[str, Any], List[tuple[str, Any]]]] = None) -> Any:
         resp = self.session.get(self._url(path), params=params, timeout=self.timeout)
+        if not resp.ok:
+            raise AtlasError(f"GET {path} failed: {resp.reason}", resp.status_code, resp.text or "(empty)")
+        return resp.json()
+
+    @retry(
+        retry=retry_if_exception_type(_RETRYABLE),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
+    def _get_api_root(
+        self, path: str, params: Optional[Union[Dict[str, Any], List[tuple[str, Any]]]] = None
+    ) -> Any:
+        resp = self.session.get(self._api_root_url(path), params=params, timeout=self.timeout)
         if not resp.ok:
             raise AtlasError(f"GET {path} failed: {resp.reason}", resp.status_code, resp.text or "(empty)")
         return resp.json()
@@ -94,13 +118,13 @@ class AtlasClient:
     # ── Admin ──────────────────────────────────────────────────────────────
 
     def get_status(self) -> Dict[str, Any]:
-        return self._get("admin/status")
+        return self._get_api_root("admin/status")
 
     def get_metrics(self) -> Dict[str, Any]:
-        return self._get("admin/metrics")
+        return self._get_api_root("admin/metrics")
 
     def get_version(self) -> Dict[str, Any]:
-        return self._get("admin/version")
+        return self._get_api_root("admin/version")
 
     # ── Search (DiscoveryREST) ─────────────────────────────────────────────
 

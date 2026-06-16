@@ -37,12 +37,15 @@ def build_client(config: ServerConfig) -> AtlasClient:
     auth = AtlasAuthFactory(
         user=config.atlas_user,
         password=config.atlas_password,
-        knox_token=config.knox_token,
-        knox_cookie=config.knox_cookie,
         verify=verify,
     )
     session = auth.build_session()
-    return AtlasClient(base_url, session, timeout_seconds=config.timeout_seconds)
+    return AtlasClient(
+        config.build_atlas_base(),
+        session,
+        timeout_seconds=config.timeout_seconds,
+        api_root_url=config.build_atlas_api_root(),
+    )
 
 
 def create_server(atlas: AtlasClient) -> FastMCP:
