@@ -49,4 +49,7 @@ class ServerConfig:
                 "ATLAS_GATEWAY_URL must be set.\n"
                 "Example: ATLAS_GATEWAY_URL=https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/"
             )
-        return self.atlas_gateway_url.rstrip("/")
+        base = self.atlas_gateway_url.rstrip("/")
+        if not base.endswith("/v2"):
+            base = f"{base}/v2"
+        return base

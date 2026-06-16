@@ -31,6 +31,12 @@ class AtlasAuthFactory:
     def build_session(self) -> requests.Session:
         session = requests.Session()
         session.verify = self.verify
+        session.headers.update(
+            {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            }
+        )
 
         if self.knox_cookie:
             session.headers["Cookie"] = self.knox_cookie

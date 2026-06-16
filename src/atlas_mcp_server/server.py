@@ -76,8 +76,11 @@ def create_server(atlas: AtlasClient) -> FastMCP:
         limit: int = 25,
         offset: int = 0,
         exclude_deleted: bool = True,
+        marker: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Search Atlas entities using basic search.
+        """Search Atlas entities using GET /v2/search/basic (searchUsingBasic).
 
         Args:
             query: Search string. Use '*' to match all entities.
@@ -86,6 +89,9 @@ def create_server(atlas: AtlasClient) -> FastMCP:
             limit: Maximum results to return (default 25, max 1000).
             offset: Pagination offset.
             exclude_deleted: Whether to exclude deleted entities (default true).
+            marker: Pagination marker returned by a previous search page.
+            sort_by: Attribute to sort results by.
+            sort_order: Sort direction (e.g. ASC or DESC).
 
         Returns list of matching entities with their GUIDs, names, and types.
         """
@@ -97,6 +103,9 @@ def create_server(atlas: AtlasClient) -> FastMCP:
                 limit=limit,
                 offset=offset,
                 exclude_deleted=exclude_deleted,
+                marker=marker,
+                sort_by=sort_by,
+                sort_order=sort_order,
             )
         )
 
@@ -122,26 +131,43 @@ def create_server(atlas: AtlasClient) -> FastMCP:
 
     @app.tool()
     async def dsl_search(
-        query: str,
+        query: Optional[str] = None,
+        type_name: Optional[str] = None,
+        classification: Optional[str] = None,
         limit: int = 25,
         offset: int = 0,
     ) -> Dict[str, Any]:
         """Search using Atlas DSL (Domain Specific Language) for precise queries.
 
+        Maps to GET /api/atlas/v2/search/dsl with query, typeName, classification,
+        limit, and offset parameters.
+
         Atlas DSL examples:
-          - 'hive_table'                          → all Hive tables
-          - 'hive_table where name="sales"'       → Hive table named "sales"
-          - 'hive_table where db.name="default"'  → tables in the default database
-          - 'Column where dataType="string"'      → all string columns
-          - 'hive_table where createTime > "2024-01-01"' → recently created tables
-          - 'DataSet where owner="alice"'         → assets owned by alice
+          - type_name='hive_table'                → all Hive tables (REST typeName param)
+          - query='hive_table'                    → same, via DSL query string
+          - query='hive_table where name="sales"' → Hive table named "sales"
+          - query='hive_table where db.name="default"' → tables in the default database
+          - type_name='hive_table', classification='PII' → tagged Hive tables
+          - query='Column where dataType="string"' → all string columns
 
         Args:
-            query: Atlas DSL query string.
+            query: Atlas DSL query string (optional if type_name is set).
+            type_name: Entity type filter (Atlas typeName param).
+            classification: Classification/tag filter (Atlas classification param).
             limit: Maximum results (default 25).
             offset: Pagination offset.
         """
-        return _redact(atlas.search_dsl(query, limit=limit, offset=offset))
+        if query is None and type_name is None:
+            raise ValueError("Provide at least one of query or type_name.")
+        return _redact(
+            atlas.search_dsl(
+                query=query,
+                type_name=type_name,
+                classification=classification,
+                limit=limit,
+                offset=offset,
+            )
+        )
 
     @app.tool()
     async def search_by_classification(
@@ -175,35 +201,55 @@ def create_server(atlas: AtlasClient) -> FastMCP:
     async def get_entity(
         guid: str,
         ignore_relationships: bool = False,
+        min_ext_info: bool = False,
     ) -> Dict[str, Any]:
-        """Get full details of an Atlas entity by its GUID.
+        """Get full details of an Atlas entity by its GUID (GET /v2/entity/guid/{guid}).
 
         Returns all attributes, classifications, labels, and optionally relationships.
 
         Args:
             guid: The entity GUID (obtained from search results).
             ignore_relationships: If true, skip fetching relationship details (faster).
+            min_ext_info: If true, return minimal extended info.
         """
-        return _redact(atlas.get_entity_by_guid(guid, ignore_relationships=ignore_relationships))
+        return _redact(
+            atlas.get_entity_by_guid(
+                guid,
+                ignore_relationships=ignore_relationships,
+                min_ext_info=min_ext_info,
+            )
+        )
 
     @app.tool()
     async def get_entity_by_attribute(
         type_name: str,
         attr_name: str,
         attr_value: str,
+        ignore_relationships: bool = False,
+        min_ext_info: bool = False,
     ) -> Dict[str, Any]:
-        """Get an entity by its unique attribute value instead of GUID.
+        """Get an entity by unique attribute (GET /v2/entity/uniqueAttribute/type/{typeName}).
 
-        Useful when you know the qualified name or other unique attribute.
+        Pass the unique attribute as attr:{name} query param, e.g. attr:qualifiedName=value.
 
         Args:
             type_name: Entity type name (e.g. 'hive_table').
             attr_name: Unique attribute name — typically 'qualifiedName'.
             attr_value: The attribute value (e.g. 'default.sales_data@cluster1').
+            ignore_relationships: If true, skip relationship details.
+            min_ext_info: If true, return minimal extended info.
 
         Example: get_entity_by_attribute('hive_table', 'qualifiedName', 'default.orders@mycluster')
         """
-        return _redact(atlas.get_entity_by_attribute(type_name, attr_name, attr_value))
+        return _redact(
+            atlas.get_entity_by_attribute(
+                type_name,
+                attr_name,
+                attr_value,
+                ignore_relationships=ignore_relationships,
+                min_ext_info=min_ext_info,
+            )
+        )
 
     @app.tool()
     async def get_entity_classifications(guid: str) -> Dict[str, Any]:
@@ -229,16 +275,36 @@ def create_server(atlas: AtlasClient) -> FastMCP:
     async def get_entity_audit(
         guid: str,
         count: int = 50,
+        offset: int = -1,
+        start_key: Optional[str] = None,
+        audit_action: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Get the audit history of changes made to an entity.
+        """Get entity audit history (GET /v2/entity/{guid}/audit).
 
         Shows who changed what attributes, when classifications were added/removed, etc.
 
         Args:
             guid: The entity GUID.
             count: Number of audit entries to return (default 50, max 1000).
+            offset: Pagination offset (default -1).
+            start_key: Audit pagination start key from a previous response.
+            audit_action: Filter by audit action type.
+            sort_by: Attribute to sort audit events by.
+            sort_order: Sort direction (e.g. ASC or DESC).
         """
-        return _redact(atlas.get_entity_audit(guid, count=count))
+        return _redact(
+            atlas.get_entity_audit(
+                guid,
+                count=count,
+                offset=offset,
+                start_key=start_key,
+                audit_action=audit_action,
+                sort_by=sort_by,
+                sort_order=sort_order,
+            )
+        )
 
     @app.tool()
     async def add_classification_to_entity(
@@ -400,18 +466,27 @@ def create_server(atlas: AtlasClient) -> FastMCP:
 
     @app.tool()
     async def list_glossary_terms(
-        glossary_guid: Optional[str] = None,
+        glossary_guid: str,
         limit: int = 100,
         offset: int = 0,
+        sort: str = "ASC",
     ) -> Any:
-        """List glossary terms, optionally filtered to a specific glossary.
+        """List glossary terms (GET /v2/glossary/{glossaryGuid}/terms).
 
         Args:
-            glossary_guid: GUID of the glossary to list terms from. If omitted, lists all terms.
+            glossary_guid: GUID of the glossary to list terms from (required).
             limit: Maximum terms to return (default 100).
             offset: Pagination offset.
+            sort: Sort order, ASC (default) or DESC.
         """
-        return _redact(atlas.list_glossary_terms(glossary_guid=glossary_guid, limit=limit, offset=offset))
+        return _redact(
+            atlas.list_glossary_terms(
+                glossary_guid=glossary_guid,
+                limit=limit,
+                offset=offset,
+                sort=sort,
+            )
+        )
 
     @app.tool()
     async def get_glossary_term(term_guid: str) -> Dict[str, Any]:
@@ -427,41 +502,63 @@ def create_server(atlas: AtlasClient) -> FastMCP:
         term_guid: str,
         limit: int = 25,
         offset: int = 0,
+        sort: str = "ASC",
     ) -> Any:
-        """Find all data assets (entities) associated with a glossary term.
+        """Find data assets linked to a glossary term.
+
+        GET /v2/glossary/terms/{termGuid}/assignedEntities
 
         Args:
             term_guid: The GUID of the glossary term.
             limit: Maximum results (default 25).
             offset: Pagination offset.
+            sort: Sort order, ASC (default) or DESC.
         """
-        return _redact(atlas.get_entities_for_term(term_guid, limit=limit, offset=offset))
+        return _redact(
+            atlas.get_entities_for_term(term_guid, limit=limit, offset=offset, sort=sort)
+        )
 
     # ── Relationship ───────────────────────────────────────────────────────
 
     @app.tool()
-    async def get_relationship(guid: str) -> Dict[str, Any]:
-        """Get details of a relationship between two Atlas entities.
+    async def get_relationship(
+        guid: str,
+        extended_info: bool = False,
+    ) -> Dict[str, Any]:
+        """Get relationship details (GET /v2/relationship/guid/{guid}).
 
         Args:
             guid: The relationship GUID (found in entity relationship attributes).
+            extended_info: Include extended relationship metadata when true.
         """
-        return _redact(atlas.get_relationship_by_guid(guid))
+        return _redact(atlas.get_relationship_by_guid(guid, extended_info=extended_info))
 
     # ── Bulk entity fetch ──────────────────────────────────────────────────
 
     @app.tool()
-    async def get_entities_bulk(guids: str) -> Dict[str, Any]:
-        """Fetch multiple entities by their GUIDs in a single call.
+    async def get_entities_bulk(
+        guids: str,
+        ignore_relationships: bool = False,
+        min_ext_info: bool = False,
+    ) -> Dict[str, Any]:
+        """Fetch multiple entities by GUID (GET /v2/entity/bulk).
 
         Args:
             guids: Comma-separated list of entity GUIDs.
                    Example: 'abc-123,def-456,ghi-789'
+            ignore_relationships: If true, skip relationship details.
+            min_ext_info: If true, return minimal extended info.
         """
         guid_list = [g.strip() for g in guids.split(",") if g.strip()]
         if not guid_list:
             return {"error": "No GUIDs provided"}
-        return _redact(atlas.get_entities_by_guids(guid_list))
+        return _redact(
+            atlas.get_entities_by_guids(
+                guid_list,
+                ignore_relationships=ignore_relationships,
+                min_ext_info=min_ext_info,
+            )
+        )
 
     return app
 
