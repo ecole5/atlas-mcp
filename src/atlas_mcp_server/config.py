@@ -14,11 +14,6 @@ load_dotenv(_project_root / ".env")
 
 @dataclass
 class ServerConfig:
-    # Transport: stdio (default), http, sse
-    transport: str = os.getenv("MCP_TRANSPORT", "stdio")
-    host: str = os.getenv("MCP_HOST", "127.0.0.1")
-    port: int = int(os.getenv("MCP_PORT", "3030"))
-
     # Atlas via Knox — full CDP gateway URL including the Atlas API path
     # Example: ATLAS_GATEWAY_URL=https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/
     atlas_gateway_url: str = os.getenv("ATLAS_GATEWAY_URL", "")

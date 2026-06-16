@@ -74,7 +74,6 @@ Model Context Protocol server providing AI access to Apache Atlas data catalog v
          "command": "/FULL/PATH/TO/Atlas-MCP-Server/.venv/bin/python",
          "args": ["-m", "atlas_mcp_server.server"],
          "env": {
-           "MCP_TRANSPORT": "stdio",
            "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/",
            "KNOX_TOKEN": "<your_knox_jwt_token>"
          }
@@ -98,7 +97,6 @@ Model Context Protocol server providing AI access to Apache Atlas data catalog v
         "run-server"
       ],
       "env": {
-        "MCP_TRANSPORT": "stdio",
         "ATLAS_GATEWAY_URL": "https://<host>/<topology>/cdp-proxy-api/atlas/api/atlas/",
         "KNOX_TOKEN": "<your_knox_jwt_token>"
       }
@@ -133,14 +131,6 @@ All configuration is done via environment variables.
 | `ATLAS_CA_BUNDLE` | — | Path to a CA certificate bundle |
 | `HTTP_TIMEOUT_SECONDS` | `30` | Request timeout in seconds |
 | `HTTP_MAX_RETRIES` | `3` | Maximum retry attempts on transient errors |
-
-### Server Transport
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MCP_TRANSPORT` | `stdio` | Transport mode: `stdio`, `http`, or `sse` |
-| `MCP_HOST` | `127.0.0.1` | Bind address (for `http`/`sse` modes) |
-| `MCP_PORT` | `3030` | Port (for `http`/`sse` modes) |
 
 ### CDP URL pattern
 

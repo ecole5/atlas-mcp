@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, List, Optional
 
 import anyio
@@ -571,13 +570,6 @@ async def _run_stdio() -> None:
 
 
 def main() -> None:
-    transport = os.getenv("MCP_TRANSPORT", "stdio").lower()
-    if transport != "stdio":
-        config = ServerConfig()
-        atlas = build_client(config)
-        server = create_server(atlas)
-        server.run(transport=transport)
-        return
     anyio.run(_run_stdio)
 
 
