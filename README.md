@@ -4,7 +4,7 @@ Model Context Protocol server providing AI access to Apache Atlas data catalog v
 
 ## Features
 
-- **Basic authentication** — Knox proxies `ATLAS_USER` / `ATLAS_PASS` credentials through to Atlas
+- **Basic authentication** — Knox proxies `ATLAS_USER` / `ATLAS_PASS` credentials through to Atlas. 
 - **Read-mostly** — safe exploration of entities, lineage, types, and glossaries; a small set of write tools for tagging and labeling
 - **Automatic retries** — exponential backoff on transient errors
 
@@ -131,6 +131,12 @@ All configuration is done via environment variables.
 | Variable                    | Required | Description            |
 | --------------------------- | -------- | ---------------------- |
 | `ATLAS_USER` + `ATLAS_PASS` | Yes      | Basic auth credentials |
+
+On CDP `ATLAS_USER` is the workload username and `ATLAS_PASS` is the workload password. 
+
+<img width="1720" height="432" alt="Screenshot 2026-06-17 at 9 41 15 AM" src="https://github.com/user-attachments/assets/372a9e84-8fcf-477d-a045-c088a590bc85" />
+
+
 
 
 ### TLS / HTTP
