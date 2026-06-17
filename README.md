@@ -146,11 +146,12 @@ All configuration is done via environment variables.
 
 ### CDP URL pattern
 
-The `ATLAS_GATEWAY_URL` for a CDP Flow Management DataHub is the full Atlas API path through Knox, for example:
+The `ATLAS_GATEWAY_URL` is the full Atlas API path through Knox, for example:
 
 ```
 https://<cluster-host>/<topology>/cdp-proxy-api/atlas/api/atlas/
 ```
+<img width="1693" height="944" alt="Screenshot 2026-06-17 at 9 36 39 AM" src="https://github.com/user-attachments/assets/12507355-caf6-4b5a-8d5c-8d1be9175ab4" />
 
 A trailing slash is optional.
 
