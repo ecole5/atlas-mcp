@@ -264,6 +264,63 @@ def create_server(atlas: AtlasClient) -> FastMCP:
         )
 
     @app.tool()
+    async def describe_asset(
+        guid: Optional[str] = None,
+        type_name: Optional[str] = None,
+        attr_name: str = "qualifiedName",
+        attr_value: Optional[str] = None,
+        lineage_depth: int = 1,
+        include_columns: bool = False,
+        column_limit: int = 100,
+        timeout_seconds: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Get a consolidated overview of a data asset in a single call.
+
+        Combines entity details, classifications (tags), labels, glossary terms,
+        and a lineage summary (direct upstream/downstream neighbors) so you do not
+        need multiple tool calls for common "tell me about this asset" questions.
+
+        Lookup by GUID or by unique attribute (typically qualifiedName).
+
+        Column info is supported for table assets only (hive_table, iceberg_table).
+        Set include_columns=true to add a columns section with name, dataType,
+        position, and qualifiedName. Use column_limit to cap large schemas.
+
+        Args:
+            guid: Entity GUID from search results.
+            type_name: Entity type when looking up by attribute (e.g. 'hive_table').
+            attr_name: Unique attribute name (default 'qualifiedName').
+            attr_value: Unique attribute value (e.g. 'default.orders@mycluster').
+            lineage_depth: Lineage hops to traverse (default 1 = direct neighbors only).
+            include_columns: Include column schema for table assets (default false).
+            column_limit: Max columns to return when include_columns is true (default 100).
+            timeout_seconds: Optional per-call HTTP timeout override (defaults to HTTP_TIMEOUT_SECONDS).
+
+        Example:
+            describe_asset(type_name='hive_table', attr_value='default.orders@mycluster', include_columns=true)
+        """
+        if guid is None and (type_name is None or attr_value is None):
+            raise ValueError("Provide guid, or type_name with attr_value.")
+        if lineage_depth < 1:
+            raise ValueError("lineage_depth must be at least 1.")
+        if column_limit < 1:
+            raise ValueError("column_limit must be at least 1.")
+        if timeout_seconds is not None and timeout_seconds < 1:
+            raise ValueError("timeout_seconds must be at least 1.")
+        return _redact(
+            atlas.describe_asset(
+                guid=guid,
+                type_name=type_name,
+                attr_name=attr_name,
+                attr_value=attr_value,
+                lineage_depth=lineage_depth,
+                include_columns=include_columns,
+                column_limit=column_limit,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+
+    @app.tool()
     async def get_entity_classifications(guid: str) -> Dict[str, Any]:
         """Get all classifications (tags) applied to an entity.
 
@@ -368,6 +425,81 @@ def create_server(atlas: AtlasClient) -> FastMCP:
         label_list = [lbl.strip() for lbl in labels.split(",") if lbl.strip()]
         atlas.add_labels(guid, label_list)
         return {"status": "ok", "guid": guid, "added_labels": label_list}
+
+    @app.tool()
+    async def impact_analysis(
+        guid: Optional[str] = None,
+        qualified_name: Optional[str] = None,
+        type_name: Optional[str] = None,
+        depth: int = 1,
+        exact_depth: bool = False,
+        entity_types: Optional[str] = None,
+        max_impacts: int = 100,
+        timeout_seconds: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Analyze downstream impact: what breaks if this asset changes or is deleted.
+
+        Returns a simplified list of dependent assets: {name, type, guid, hop}.
+        Hop 1 = direct downstream dependency.
+
+        Lookup by GUID or by qualifiedName (requires type_name).
+
+        Filtering and iterative exploration:
+          - entity_types: comma-separated types to return (e.g. 'hive_table,iceberg_table').
+            All types are still traversed; processes/hdfs paths are skipped in output.
+          - exact_depth: when true, return ONLY entities at exactly `depth` hop (not 1..depth).
+            Use this to explore hop-by-hop: depth=1, then depth=2 with exact_depth, etc.
+          - max_impacts: cap results (default 100) to keep responses LLM-friendly.
+
+        Args:
+            guid: Entity GUID from search or describe_asset results.
+            qualified_name: Unique qualifiedName (e.g. 'default.orders@mycluster').
+            type_name: Entity type when using qualified_name (e.g. 'hive_table').
+            depth: Downstream hop to traverse to (default 1).
+            exact_depth: If true, only return entities exactly at `depth` (default false = cumulative).
+            entity_types: Comma-separated entity types to include in results.
+            max_impacts: Maximum number of impacts to return (default 100).
+            timeout_seconds: Optional per-call HTTP timeout override (defaults to HTTP_TIMEOUT_SECONDS).
+
+        Examples:
+            # Direct table dependencies only (skip spark_process noise)
+            impact_analysis(guid='...', depth=2, exact_depth=true, entity_types='hive_table,iceberg_table')
+
+            # Step 1: see immediate downstream processes
+            impact_analysis(qualified_name='default.orders@mycluster', type_name='hive_table', depth=1)
+
+            # Step 2: tables fed at hop 2 only
+            impact_analysis(qualified_name='default.orders@mycluster', type_name='hive_table', depth=2, exact_depth=true, entity_types='hive_table,iceberg_table')
+        """
+        if guid is None and qualified_name is None:
+            raise ValueError("Provide guid or qualified_name (with type_name).")
+        if qualified_name is not None and type_name is None:
+            raise ValueError("type_name is required when using qualified_name.")
+        if depth < 1:
+            raise ValueError("depth must be at least 1.")
+        if max_impacts < 1:
+            raise ValueError("max_impacts must be at least 1.")
+        if timeout_seconds is not None and timeout_seconds < 1:
+            raise ValueError("timeout_seconds must be at least 1.")
+
+        parsed_types = (
+            [item.strip() for item in entity_types.split(",") if item.strip()]
+            if entity_types
+            else None
+        )
+
+        return _redact(
+            atlas.impact_analysis(
+                guid=guid,
+                type_name=type_name,
+                attr_value=qualified_name,
+                depth=depth,
+                exact_depth=exact_depth,
+                entity_types=parsed_types,
+                max_impacts=max_impacts,
+                timeout_seconds=timeout_seconds,
+            )
+        )
 
     # ── Lineage ────────────────────────────────────────────────────────────
 
