@@ -7,8 +7,14 @@ Model Context Protocol server providing AI access to Apache Atlas data catalog v
 - **Basic authentication** — Knox proxies `ATLAS_USER` / `ATLAS_PASS` credentials through to Atlas. 
 - **Read-mostly** — safe exploration of entities, lineage, types, and glossaries; a small set of write tools for tagging and labeling
 - **Automatic retries** — exponential backoff on transient errors
+- **High-level tools** — `describe_asset` and `impact_analysis` combine multiple Atlas calls into LLM-friendly responses
 
 ### MCP Tools
+
+**Composite**
+
+- `describe_asset(guid?, type_name?, attr_value?, lineage_depth?, include_columns?, column_limit?, timeout_seconds?)` — One-call asset overview: summary, attributes, classifications, labels, glossary terms, and direct upstream/downstream lineage. Lookup by GUID or `qualifiedName`. Set `include_columns=true` for table schema (`hive_table`, `iceberg_table` only).
+- `impact_analysis(guid?, qualified_name?, type_name?, depth?, exact_depth?, entity_types?, max_impacts?, timeout_seconds?)` — Downstream impact list `{name, type, guid, hop}`. Filter by entity type (e.g. `hive_table,iceberg_table`), use `exact_depth=true` for hop-by-hop exploration, and `max_impacts` to cap large graphs.
 
 **Admin / Status**
 
@@ -146,7 +152,7 @@ On CDP `ATLAS_USER` is the workload username and `ATLAS_PASS` is the workload pa
 | ---------------------- | ------- | ----------------------------------------------- |
 | `ATLAS_VERIFY_SSL`     | `true`  | Set `false` to disable certificate verification |
 | `ATLAS_CA_BUNDLE`      | —       | Path to a CA certificate bundle                 |
-| `HTTP_TIMEOUT_SECONDS` | `30`    | Request timeout in seconds                      |
+| `HTTP_TIMEOUT_SECONDS` | `30`    | Request timeout in seconds (use `120` for slow lineage on large catalogs) |
 | `HTTP_MAX_RETRIES`     | `3`     | Maximum retry attempts on transient errors      |
 
 
@@ -165,6 +171,10 @@ A trailing slash is optional.
 
 Once configured, you can ask Claude things like:
 
+- "Describe asset `default.orders@mycluster` — it's a hive table"
+- "Show columns for table `default.sales_data@mycluster`"
+- "What breaks if I delete `default.orders@mycluster`?" (use `impact_analysis`)
+- "Which iceberg tables depend on this table at hop 2?" (`impact_analysis` with `exact_depth=true`, `entity_types=hive_table,iceberg_table`)
 - "What entity types are registered in Atlas?"
 - "Find all Hive tables in the default database"
 - "Show me the lineage for table `default.orders@mycluster`"
