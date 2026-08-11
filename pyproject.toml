@@ -9,7 +9,8 @@ dependencies = [
   "requests>=2.32.3",
   "tenacity>=9.0.0",
   "anyio>=4.4.0",
-  "mcp>=1.1.2",
+  "fastmcp>=2.9.2",
+  "mcp>=1.9.4",
   "python-dotenv>=1.0.0",
 ]
 
